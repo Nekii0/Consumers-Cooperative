@@ -80,11 +80,6 @@
   .login-box h3{ font-family: 'Caveat', cursive; font-size: 2.2rem; margin: 0 0 2px; }
   .login-box .sub{ font-size: 0.85rem; color: #8A8271; margin-bottom: 22px; }
 
-  .mock-google-icon{
-    width: 44px; height: 44px; margin: 0 auto 10px; border-radius: 50%;
-    background: #4285F4; color: #fff; display: flex; align-items: center; justify-content: center;
-    font-family: 'Work Sans', sans-serif; font-weight: 700; font-size: 1.2rem;
-  }
   .mock-google-btn{
     width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
     padding: 11px 16px; border-radius: 7px; border: 1px solid var(--paper-line); background: #fff;
