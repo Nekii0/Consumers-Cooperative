@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Coop POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN ============
+     Mocked to look like Google sign-in for demo purposes — works fully
+     offline, no account is actually checked. Just asks for a name. -->
+<div class="overlay show" id="loginOverlay">
+  <div class="login-box">
+    <div class="mock-google-icon">G</div>
+    <h3>Cooperatives Store</h3>
+    <div class="sub">Sign in with Google to continue</div>
+
+    <div id="googleBtnStep">
+      <button type="button" class="mock-google-btn" id="mockGoogleBtn">
+        <span class="g-circle">G</span> Sign in with Google
+      </button>
+    </div>
+
+    <div id="mockNameStep" style="display:none;">
+      <div class="form-field" style="text-align:left;">
+        <label for="mockUserName">Your name</label>
+        <input type="text" id="mockUserName" placeholder="e.g. Michael Adrian">
+      </div>
+      <div class="form-error" id="mockLoginError">Please enter your name.</div>
+      <div class="form-actions">
+        <button type="button" class="btn-print" id="mockCancelBtn">Back</button>
+        <button type="button" class="btn-new" id="mockContinueBtn">Continue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="kiosk" id="kioskApp" style="display:none;">
+  <div class="user-badge" id="userBadge">
+    <div id="userAvatar" class="user-avatar"></div>
+    <span id="userName" class="user-name"></span>
+    <button type="button" id="signOutBtn" class="signout-btn" title="Sign out">⏻</button>
+  </div>
+  <header>
+    <h1>Cooperatives Store</h1>
+    <p>Tap an item, set how many, add it to your order</p>
+  </header>
+
+  <nav class="view-tabs">
+    <button class="tab-btn active" id="tabOrder">🛒 Order Kiosk</button>
+    <button class="tab-btn" id="tabManage">🛠 Manage Products</button>
+    <button class="tab-btn" id="tabPromos">🏷 Manage Promos</button>
+  </nav>
+
+  <!-- ============ ORDER KIOSK VIEW ============ -->
+  <div class="view active" id="kioskView">
+    <div class="layout">
+      <div class="product-grid" id="productGrid"></div>
+
+      <div class="order-panel">
+        <h2>Your Order</h2>
+        <ul class="order-list" id="orderList">
+          <li class="empty-msg">Nothing added yet</li>
+        </ul>
+
+        <div class="discount-block">
+          <button type="button" class="discount-toggle-btn" id="discountToggleBtn">+ Add Discount</button>
+          <div class="discount-form" id="discountForm" style="display:none;">
+            <div class="discount-type-tabs">
+              <button type="button" class="dtab active" id="dtabPercent">%</button>
+              <button type="button" class="dtab" id="dtabFixed">₱</button>
+            </div>
+            <input type="number" id="discountValue" min="0" step="0.01" placeholder="e.g. 10">
+            <div class="quick-discounts" id="quickDiscounts"></div>
+            <div class="discount-actions">
+              <button type="button" class="btn-print" id="cancelDiscountBtn">Cancel</button>
+              <button type="button" class="btn-new" id="applyDiscountBtn">Apply</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="totals">
+          <div class="row" id="subtotalRow">
+            <span>Subtotal</span>
+            <span id="subtotalAmount">₱0.00</span>
+          </div>
+          <div class="row discount-row" id="discountRow" style="display:none;">
+            <span id="discountLabel">Discount</span>
+            <span>
+              <span id="discountAmountDisplay">–₱0.00</span>
+              <button type="button" class="remove-discount-btn" id="removeDiscountBtn">remove</button>
+            </span>
+          </div>
+          <div class="row grand">
+            <span>Total</span>
+            <span id="totalAmount">₱0.00</span>
+          </div>
+        </div>
+        <button class="checkout-btn" id="checkoutBtn" disabled>Checkout &amp; Print Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MANAGE PRODUCTS VIEW ============ -->
+  <div class="view" id="manageView">
+    <div class="manage-layout">
+
+      <div class="manage-panel">
+        <h2>Products <button id="addNewBtn">+ Add New</button></h2>
+        <div class="manage-list" id="manageList"></div>
+      </div>
+
+      <div class="manage-panel" id="formPanel" style="display:none;">
+        <h2 id="formTitle">Add Product</h2>
+
+        <div class="form-field">
+          <label for="pName">Name</label>
+          <input type="text" id="pName" placeholder="e.g. Sweet Corn">
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="pPrice">Price (₱)</label>
+            <input type="number" id="pPrice" min="0" step="0.01" placeholder="60.00">
+          </div>
+          <div class="form-field">
+            <label for="pUnit">Sold per</label>
+            <input type="text" id="pUnit" placeholder="e.g. kg, piece, bundle">
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label>Picture</label>
+          <div class="icon-source-tabs">
+            <button type="button" class="source-tab active" id="srcIconTab">Choose an icon</button>
+            <button type="button" class="source-tab" id="srcImageTab">Upload a photo</button>
+          </div>
+
+          <div id="iconPickerBlock">
+            <div class="icon-choices" id="iconChoices"></div>
+          </div>
+
+          <div id="imageUploadBlock" style="display:none;">
+            <div class="image-upload-box">
+              <input type="file" id="imageUpload" accept="image/*">
+              <div class="image-preview" id="imagePreview"><img id="imagePreviewImg" alt=""></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-error" id="formError">Please fill in a name, price, and unit.</div>
+
+        <div class="form-actions">
+          <button class="btn-print" id="cancelFormBtn">Cancel</button>
+          <button class="btn-new" id="saveProductBtn">Save Product</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ MANAGE PROMOS VIEW ============ -->
+  <div class="view" id="promosView">
+    <div class="manage-layout">
+
+      <div class="manage-panel">
+        <h2>Promos <button id="addPromoBtn">+ Add New</button></h2>
+        <div class="manage-list" id="promoList"></div>
+      </div>
+
+      <div class="manage-panel" id="promoFormPanel" style="display:none;">
+        <h2 id="promoFormTitle">Add Promo</h2>
+
+        <div class="form-field">
+          <label for="promoName">Promo Name</label>
+          <input type="text" id="promoName" placeholder="e.g. Senior/PWD, Founding Anniversary">
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label>Type</label>
+            <div class="icon-source-tabs">
+              <button type="button" class="source-tab active" id="promoTabPercent">%</button>
+              <button type="button" class="source-tab" id="promoTabFixed">₱</button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="promoValue" id="promoValueLabel">Percent Off</label>
+            <input type="number" id="promoValue" min="0" step="0.01" placeholder="e.g. 20">
+          </div>
+        </div>
+
+        <div class="form-error" id="promoFormError">Please give the promo a name and a value.</div>
+
+        <div class="form-actions">
+          <button class="btn-print" id="cancelPromoBtn">Cancel</button>
+          <button class="btn-new" id="savePromoBtn">Save Promo</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Payment overlay — cash received & change, shown before the receipt -->
+<div class="overlay" id="paymentOverlay">
+  <div class="receipt" id="paymentBox">
+    <h3>Payment</h3>
+    <div class="sub">Enter cash received</div>
+
+    <div class="r-line r-grand" style="margin-bottom:14px;">
+      <span>Amount Due</span>
+      <span id="payDue">₱0.00</span>
+    </div>
+
+    <div class="form-field">
+      <label for="cashReceivedInput">Cash Received (₱)</label>
+      <input type="number" id="cashReceivedInput" min="0" step="0.01" placeholder="0.00">
+    </div>
+
+    <div class="quick-cash" id="quickCash"></div>
+
+    <div class="r-totals" style="margin-top:14px;">
+      <div class="r-line" id="changeRow">
+        <span id="changeLabel">Change</span>
+        <span id="changeAmount">₱0.00</span>
+      </div>
+    </div>
+
+    <div class="form-error" id="paymentError">Cash received is less than the amount due.</div>
+
+    <div class="overlay-actions">
+      <button class="btn-print" id="cancelPaymentBtn">Cancel</button>
+      <button class="btn-new" id="confirmPaymentBtn" disabled>Confirm Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt overlay -->
+<div class="overlay" id="overlay">
+  <div class="receipt" id="receiptBox">
+    <h3>Cooperatives Store</h3>
+    <div class="sub">Fresh goods, honest prices</div>
+    <div class="meta" id="receiptMeta"></div>
+    <div id="receiptLines"></div>
+    <div class="r-totals">
+      <div class="r-line" id="receiptSubtotalRow">
+        <span>Subtotal</span>
+        <span id="receiptSubtotal">₱0.00</span>
+      </div>
+      <div class="r-line" id="receiptDiscountRow" style="display:none;">
+        <span id="receiptDiscountLabel">Discount</span>
+        <span id="receiptDiscountAmount">–₱0.00</span>
+      </div>
+      <div class="r-line r-grand">
+        <span>TOTAL</span>
+        <span id="receiptTotal">₱0.00</span>
+      </div>
+      <div class="r-line" id="receiptCashRow">
+        <span>Cash Received</span>
+        <span id="receiptCash">₱0.00</span>
+      </div>
+      <div class="r-line" id="receiptChangeRow">
+        <span>Change</span>
+        <span id="receiptChange">₱0.00</span>
+      </div>
+    </div>
+    <div class="thanks">Thanks for stopping by!</div>
+    <div class="overlay-actions">
+      <button class="btn-print" id="printBtn">Print</button>
+      <button class="btn-new" id="newOrderBtn">New Order</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
