@@ -11,8 +11,9 @@
 <body>
 
 <!-- ============ LOGIN SCREEN ============
-     Mocked to look like Google sign-in for demo purposes — works fully
-     offline, no account is actually checked. Just asks for a name. -->
+     Real Google sign-in when a Client ID is set in script.js and the page
+     is served over http/https. Otherwise (or offline) it falls back to a
+     name-only sign-in that checks no account. -->
 <div class="overlay show" id="loginOverlay">
   <div class="login-box">
     <div class="mock-google-icon">G</div>
@@ -20,9 +21,12 @@
     <div class="sub">Sign in with Google to continue</div>
 
     <div id="googleBtnStep">
+      <div id="googleSignInBtn" class="google-signin-btn"></div>
       <button type="button" class="mock-google-btn" id="mockGoogleBtn">
         <span class="g-circle">G</span> Sign in with Google
       </button>
+      <button type="button" class="name-login-link" id="nameLoginLink" style="display:none;">Sign in with just a name instead</button>
+      <div class="login-note" id="loginNote"></div>
     </div>
 
     <div id="mockNameStep" style="display:none;">
@@ -278,6 +282,7 @@
   </div>
 </div>
 
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="script.js"></script>
 
 </body>

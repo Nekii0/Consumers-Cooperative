@@ -98,6 +98,15 @@
     flex-shrink: 0;
   }
   #mockNameStep .form-actions{ margin-top: 10px; }
+  .user-avatar.has-photo{ background-size: cover; background-position: center; }
+  .google-signin-btn{ display: flex; justify-content: center; min-height: 0; }
+  .name-login-link{
+    margin-top: 14px; background: none; border: none; padding: 0; cursor: pointer;
+    color: #8A8271; font-family: 'Work Sans', sans-serif; font-size: 0.8rem; text-decoration: underline;
+  }
+  .name-login-link:hover{ color: #2B2620; }
+  .login-note{ margin-top: 12px; font-size: 0.75rem; color: #8A8271; line-height: 1.4; }
+  .login-note:empty{ display: none; }
 
   header{ text-align: center; margin-bottom: 14px; }
 
@@ -230,7 +239,7 @@
   }
   .price-edit:focus{ outline: none; }
   .price-edit::-webkit-outer-spin-button, .price-edit::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
-  .price-edit[type=number]{ -moz-appearance: textfield; }
+  .price-edit[type=number]{ -moz-appearance: textfield; appearance: textfield; }
 
   .qty-input{
     width: 48px; text-align: center; background: transparent; border: none;
@@ -239,7 +248,7 @@
   }
   .qty-input:focus{ outline: none; border-color: var(--yolk); }
   .qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
-  .qty-input[type=number]{ -moz-appearance: textfield; }
+  .qty-input[type=number]{ -moz-appearance: textfield; appearance: textfield; }
 
   .add-btn{
     margin-top: 12px; width: 100%; padding: 11px 0; border: none; border-radius: 8px;

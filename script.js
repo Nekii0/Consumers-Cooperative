@@ -1,10 +1,19 @@
 /* =========================================================
-   SIGN-IN (mock)
-   Looks like Google sign-in but works fully offline — no
-   account is checked, it just asks for a name so receipts
-   and the header can show who is at the till.
+   SIGN-IN
+   Real Google sign-in when GOOGLE_CLIENT_ID is set and the
+   page is served over http/https (e.g. GitHub Pages or
+   `python -m http.server`). Otherwise — no Client ID, opened
+   as a file://, or offline — it falls back to a name-only
+   sign-in that checks no account.
+
+   Get a Client ID from Google Cloud Console > Google Auth
+   Platform > Clients (Web application), and add your site's
+   origins (https://nekii0.github.io, http://localhost:5500)
+   under "Authorized JavaScript origins".
 ========================================================= */
-let currentUser = null; // { name } once signed in
+const GOOGLE_CLIENT_ID = "38253757162-3qvrfrj7u5cuqa47gtm7th6o39qbabf2.apps.googleusercontent.com";
+
+let currentUser = null; // { name, email?, picture?, provider: "google"|"name" } once signed in
 
 const loginOverlay    = document.getElementById("loginOverlay");
 const kioskApp        = document.getElementById("kioskApp");
@@ -13,6 +22,10 @@ const userAvatar      = document.getElementById("userAvatar");
 const userNameEl      = document.getElementById("userName");
 const signOutBtn      = document.getElementById("signOutBtn");
 const googleBtnStep   = document.getElementById("googleBtnStep");
+const googleSignInBtn = document.getElementById("googleSignInBtn");
+const mockGoogleBtn   = document.getElementById("mockGoogleBtn");
+const nameLoginLink   = document.getElementById("nameLoginLink");
+const loginNote       = document.getElementById("loginNote");
 const mockNameStep    = document.getElementById("mockNameStep");
 const mockUserName    = document.getElementById("mockUserName");
 const mockLoginError  = document.getElementById("mockLoginError");
@@ -36,34 +49,122 @@ function showSignedInUI(){
   kioskApp.style.display = "flex";
   userBadge.style.display = "flex";
   userNameEl.textContent = currentUser.name;
-  userAvatar.textContent = initialsFor(currentUser.name);
+  userBadge.title = currentUser.email || "";
+  if (currentUser.picture){
+    userAvatar.textContent = "";
+    userAvatar.style.backgroundImage = `url("${currentUser.picture}")`;
+    userAvatar.classList.add("has-photo");
+  } else {
+    userAvatar.textContent = initialsFor(currentUser.name);
+    userAvatar.style.backgroundImage = "";
+    userAvatar.classList.remove("has-photo");
+  }
 }
 
-function signIn(){
+function setCurrentUser(user){
+  currentUser = user;
+  localStorage.setItem("coopUser", JSON.stringify(currentUser));
+  showSignedInUI();
+}
+
+/* ---------- Name-only sign-in (fallback) ---------- */
+function signInWithName(){
   const name = mockUserName.value.trim();
   if (!name){
     mockLoginError.style.display = "block";
     mockUserName.focus();
     return;
   }
-  currentUser = { name };
-  localStorage.setItem("coopUser", JSON.stringify(currentUser));
-  showSignedInUI();
+  setCurrentUser({ name, provider: "name" });
 }
 
+/* ---------- Google sign-in ---------- */
+/* Decode the ID token Google hands back to read the person's
+   name/email/photo. Fine for a front-end-only app; anything that
+   needs to trust the identity (e.g. a shared inventory API) must
+   verify the token on a server instead. */
+function decodeJwt(token){
+  const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+  const json = decodeURIComponent(
+    atob(base64).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
+  );
+  return JSON.parse(json);
+}
+
+function handleGoogleCredential(response){
+  try {
+    const payload = decodeJwt(response.credential);
+    setCurrentUser({
+      name: payload.name || payload.email,
+      email: payload.email,
+      picture: payload.picture,
+      provider: "google"
+    });
+  } catch(e){
+    loginNote.textContent = "Google sign-in failed. Try again, or sign in with just a name.";
+  }
+}
+
+function useNameOnlyLogin(reason){
+  googleSignInBtn.style.display = "none";
+  mockGoogleBtn.style.display = "flex";
+  nameLoginLink.style.display = "none";
+  loginNote.textContent = reason || "";
+}
+
+let gsiWaitMs = 0;
+function initGoogleSignIn(){
+  if (GOOGLE_CLIENT_ID.startsWith("YOUR_CLIENT_ID")){
+    useNameOnlyLogin("Google sign-in isn't set up yet (add GOOGLE_CLIENT_ID in script.js).");
+    return;
+  }
+  if (location.protocol === "file:"){
+    useNameOnlyLogin("Google sign-in needs the page served over http/https — see the README.");
+    return;
+  }
+  if (!window.google || !google.accounts || !google.accounts.id){
+    // Google's script loads async — wait for it, but give up if offline
+    gsiWaitMs += 200;
+    if (gsiWaitMs > 8000){
+      useNameOnlyLogin("Couldn't reach Google (offline?).");
+      return;
+    }
+    setTimeout(initGoogleSignIn, 200);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential
+  });
+  google.accounts.id.renderButton(googleSignInBtn, {
+    theme: "outline", size: "large", shape: "pill", text: "signin_with", width: 280
+  });
+  googleSignInBtn.style.display = "flex";
+  mockGoogleBtn.style.display = "none";
+  nameLoginLink.style.display = "inline";
+  loginNote.textContent = "";
+}
+
+/* ---------- Sign out ---------- */
 function signOut(){
+  const wasGoogle = currentUser && currentUser.provider === "google";
   currentUser = null;
   localStorage.removeItem("coopUser");
+  // stop Google from silently re-selecting this account on a shared kiosk
+  if (wasGoogle && window.google && google.accounts && google.accounts.id){
+    google.accounts.id.disableAutoSelect();
+  }
   kioskApp.style.display = "none";
   userBadge.style.display = "none";
   showLoginStep("button");
   loginOverlay.classList.add("show");
 }
 
-document.getElementById("mockGoogleBtn").addEventListener("click", () => showLoginStep("name"));
+mockGoogleBtn.addEventListener("click", () => showLoginStep("name"));
+nameLoginLink.addEventListener("click", () => showLoginStep("name"));
 document.getElementById("mockCancelBtn").addEventListener("click", () => showLoginStep("button"));
-document.getElementById("mockContinueBtn").addEventListener("click", signIn);
-mockUserName.addEventListener("keydown", e => { if (e.key === "Enter") signIn(); });
+document.getElementById("mockContinueBtn").addEventListener("click", signInWithName);
+mockUserName.addEventListener("keydown", e => { if (e.key === "Enter") signInWithName(); });
 signOutBtn.addEventListener("click", signOut);
 
 // Resume a previous session so a page reload doesn't sign the cashier out
@@ -71,6 +172,10 @@ try {
   const saved = JSON.parse(localStorage.getItem("coopUser"));
   if (saved && saved.name){ currentUser = saved; showSignedInUI(); }
 } catch(e){ /* ignore bad or unavailable cache */ }
+
+// Until Google is ready, show only the fallback button
+googleSignInBtn.style.display = "none";
+initGoogleSignIn();
 
 /* -------------------------------------------------------
    ICON LIBRARY
