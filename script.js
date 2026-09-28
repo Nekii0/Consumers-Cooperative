@@ -1,96 +1,76 @@
 /* =========================================================
-   GOOGLE SIGN-IN
-   Paste your own OAuth Client ID below (from Google Cloud
-   Console > APIs & Services > Credentials). Until you do,
-   the login screen shows a setup reminder instead of the
-   Google button. The page must be served over http/https
-   (not opened as a file://) for sign-in to work.
+   SIGN-IN (mock)
+   Looks like Google sign-in but works fully offline — no
+   account is checked, it just asks for a name so receipts
+   and the header can show who is at the till.
 ========================================================= */
-const GOOGLE_CLIENT_ID = "YOUR_CLIENT_ID_HERE.apps.googleusercontent.com";
+let currentUser = null; // { name } once signed in
 
-let currentUser = null; // { name, email, picture } once signed in
+const loginOverlay    = document.getElementById("loginOverlay");
+const kioskApp        = document.getElementById("kioskApp");
+const userBadge       = document.getElementById("userBadge");
+const userAvatar      = document.getElementById("userAvatar");
+const userNameEl      = document.getElementById("userName");
+const signOutBtn      = document.getElementById("signOutBtn");
+const googleBtnStep   = document.getElementById("googleBtnStep");
+const mockNameStep    = document.getElementById("mockNameStep");
+const mockUserName    = document.getElementById("mockUserName");
+const mockLoginError  = document.getElementById("mockLoginError");
 
-const loginOverlay   = document.getElementById("loginOverlay");
-const loginNote      = document.getElementById("loginNote");
-const kioskApp       = document.getElementById("kioskApp");
-const userBadge      = document.getElementById("userBadge");
-const userAvatar     = document.getElementById("userAvatar");
-const userNameEl     = document.getElementById("userName");
-const signOutBtn     = document.getElementById("signOutBtn");
-
-/* Decode the JWT Google hands back so we can read the person's
-   name/email/photo. This is enough for a front-end-only mockup;
-   a real deployment should verify the token on a server instead
-   of trusting it as-is. */
-function decodeJwt(token){
-  const base64Url = token.split(".")[1];
-  const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-  const jsonPayload = decodeURIComponent(
-    atob(base64).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
-  );
-  return JSON.parse(jsonPayload);
+function initialsFor(name){
+  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join("");
 }
 
-function handleGoogleCredential(response){
-  const payload = decodeJwt(response.credential);
-  currentUser = { name: payload.name, email: payload.email, picture: payload.picture };
-  localStorage.setItem("coopUser", JSON.stringify(currentUser));
-  showSignedInUI();
+function showLoginStep(step){
+  googleBtnStep.style.display = step === "button" ? "block" : "none";
+  mockNameStep.style.display  = step === "name" ? "block" : "none";
+  mockLoginError.style.display = "none";
+  if (step === "name"){
+    mockUserName.value = "";
+    mockUserName.focus();
+  }
 }
 
 function showSignedInUI(){
   loginOverlay.classList.remove("show");
   kioskApp.style.display = "flex";
   userBadge.style.display = "flex";
-  userNameEl.textContent = currentUser.name || currentUser.email || "Signed in";
-  if (currentUser.picture){
-    userAvatar.src = currentUser.picture;
-    userAvatar.style.display = "block";
-  } else {
-    userAvatar.style.display = "none";
+  userNameEl.textContent = currentUser.name;
+  userAvatar.textContent = initialsFor(currentUser.name);
+}
+
+function signIn(){
+  const name = mockUserName.value.trim();
+  if (!name){
+    mockLoginError.style.display = "block";
+    mockUserName.focus();
+    return;
   }
+  currentUser = { name };
+  localStorage.setItem("coopUser", JSON.stringify(currentUser));
+  showSignedInUI();
 }
 
 function signOut(){
   currentUser = null;
   localStorage.removeItem("coopUser");
-  if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
   kioskApp.style.display = "none";
   userBadge.style.display = "none";
+  showLoginStep("button");
   loginOverlay.classList.add("show");
 }
+
+document.getElementById("mockGoogleBtn").addEventListener("click", () => showLoginStep("name"));
+document.getElementById("mockCancelBtn").addEventListener("click", () => showLoginStep("button"));
+document.getElementById("mockContinueBtn").addEventListener("click", signIn);
+mockUserName.addEventListener("keydown", e => { if (e.key === "Enter") signIn(); });
 signOutBtn.addEventListener("click", signOut);
 
-function initGoogleSignIn(){
-  if (GOOGLE_CLIENT_ID.startsWith("YOUR_CLIENT_ID")){
-    loginNote.textContent = "Setup needed: add your Google Client ID in script.js (search for GOOGLE_CLIENT_ID) and serve this page over http/https.";
-    return;
-  }
-  if (!window.google || !google.accounts || !google.accounts.id){
-    // gsi script hasn't finished loading yet — try again shortly
-    setTimeout(initGoogleSignIn, 200);
-    return;
-  }
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: handleGoogleCredential,
-    auto_select: true
-  });
-  google.accounts.id.renderButton(
-    document.getElementById("googleSignInBtn"),
-    { theme: "outline", size: "large", shape: "pill", text: "signin_with" }
-  );
-  google.accounts.id.prompt(); // optional "one tap" prompt for returning users
-}
-
-// Resume a previous session (still requires re-verifying with Google on
-// a real deployment — this just avoids showing the login screen again
-// in this mockup).
-const savedUser = localStorage.getItem("coopUser");
-if (savedUser){
-  try { currentUser = JSON.parse(savedUser); showSignedInUI(); } catch(e){ /* ignore bad cache */ }
-}
-initGoogleSignIn();
+// Resume a previous session so a page reload doesn't sign the cashier out
+try {
+  const saved = JSON.parse(localStorage.getItem("coopUser"));
+  if (saved && saved.name){ currentUser = saved; showSignedInUI(); }
+} catch(e){ /* ignore bad or unavailable cache */ }
 
 /* -------------------------------------------------------
    ICON LIBRARY
