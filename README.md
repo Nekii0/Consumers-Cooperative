@@ -72,8 +72,3 @@ This POS currently keeps its own product list in memory (`PRODUCTS` array in `sc
 
 If your group has decided which approach to use (e.g. a shared Google Sheet via Apps Script, Firebase, or a custom API), document it here once it's chosen, and update `getSubtotal()` / `renderProducts()` in `script.js` to fetch from that shared source instead of the local `PRODUCTS` array.
 
----
-
-## Questions
-
-Ping Michael (Nekii0) on GitHub or in the group chat.
