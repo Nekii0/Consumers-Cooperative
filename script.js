@@ -13,6 +13,9 @@
 ========================================================= */
 const GOOGLE_CLIENT_ID = "38253757162-3qvrfrj7u5cuqa47gtm7th6o39qbabf2.apps.googleusercontent.com";
 
+// Translated text for a key — see settings/translations.js
+const t = coopLang.t;
+
 let currentUser = null; // { name, email?, picture?, provider: "google"|"name" } once signed in
 
 const loginOverlay    = document.getElementById("loginOverlay");
@@ -101,7 +104,7 @@ function handleGoogleCredential(response){
       provider: "google"
     });
   } catch(e){
-    loginNote.textContent = "Google sign-in failed. Try again, or sign in with just a name.";
+    loginNote.textContent = t("login.failed");
   }
 }
 
@@ -112,21 +115,30 @@ function useNameOnlyLogin(reason){
   loginNote.textContent = reason || "";
 }
 
+// (Re)draw Google's button in the current language
+function renderGoogleButton(){
+  googleSignInBtn.innerHTML = "";
+  google.accounts.id.renderButton(googleSignInBtn, {
+    theme: "outline", size: "large", shape: "pill", text: "signin_with", width: 280,
+    locale: coopLang.info().googleLocale || "en"
+  });
+}
+
 let gsiWaitMs = 0;
 function initGoogleSignIn(){
   if (GOOGLE_CLIENT_ID.startsWith("YOUR_CLIENT_ID")){
-    useNameOnlyLogin("Google sign-in isn't set up yet (add GOOGLE_CLIENT_ID in script.js).");
+    useNameOnlyLogin(t("login.noClientId"));
     return;
   }
   if (location.protocol === "file:"){
-    useNameOnlyLogin("Google sign-in needs the page served over http/https — see the README.");
+    useNameOnlyLogin(t("login.needsHttp"));
     return;
   }
   if (!window.google || !google.accounts || !google.accounts.id){
     // Google's script loads async — wait for it, but give up if offline
     gsiWaitMs += 200;
     if (gsiWaitMs > 8000){
-      useNameOnlyLogin("Couldn't reach Google (offline?).");
+      useNameOnlyLogin(t("login.offline"));
       return;
     }
     setTimeout(initGoogleSignIn, 200);
@@ -136,9 +148,7 @@ function initGoogleSignIn(){
     client_id: GOOGLE_CLIENT_ID,
     callback: handleGoogleCredential
   });
-  google.accounts.id.renderButton(googleSignInBtn, {
-    theme: "outline", size: "large", shape: "pill", text: "signin_with", width: 280
-  });
+  renderGoogleButton();
   googleSignInBtn.style.display = "flex";
   mockGoogleBtn.style.display = "none";
   nameLoginLink.style.display = "inline";
@@ -315,21 +325,21 @@ function renderProducts(){
     const extraOption = hasCurrentUnit ? "" : `<option value="${p.unit}" selected>${p.unit}</option>`;
 
     card.innerHTML = `
-      <span class="stock-tag">Fresh</span>
+      <span class="stock-tag">${t("card.fresh")}</span>
       <div class="icon">${iconHtmlFor(p)}</div>
       <p class="name">${p.name}</p>
       <p class="price"><span class="price-text">${money(p.price)}</span> <small>/ <span class="unit-text">${p.unit}</span></small></p>
       <div class="qty-row">
-        <span class="price-edit-wrap" title="Change the price for this unit">₱<input type="number" class="price-edit" value="${p.price}" min="0" step="0.01"></span>
+        <span class="price-edit-wrap" title="${t("card.changePrice")}">₱<input type="number" class="price-edit" value="${p.price}" min="0" step="0.01"></span>
         <button type="button" class="qty-btn minus">–</button>
         <input type="number" class="qty-input" value="1" min="${p.step}" step="${p.step}">
         <button type="button" class="qty-btn plus">+</button>
-        <select class="unit-select" title="Change selling unit">
+        <select class="unit-select" title="${t("card.changeUnit")}">
           ${extraOption}${unitOptionsHtml}
-          <option value="__custom__">Custom…</option>
+          <option value="__custom__">${t("card.customUnit")}</option>
         </select>
       </div>
-      <button type="button" class="add-btn">Add to Order</button>
+      <button type="button" class="add-btn">${t("card.addToOrder")}</button>
     `;
     productGrid.appendChild(card);
 
@@ -358,7 +368,7 @@ function renderProducts(){
       let newUnit = unitSelect.value;
 
       if (newUnit === "__custom__"){
-        const typed = prompt("Sold per (e.g. sack, tray, box):", p.unit);
+        const typed = prompt(t("card.customUnitPrompt"), p.unit);
         if (!typed || !typed.trim()){
           unitSelect.value = p.unit; // cancelled — put the dropdown back
           return;
@@ -407,7 +417,9 @@ function removeFromOrder(productId){
   delete order[productId];
   renderOrder();
 }
-/* current discount: null, or { type: "percent"|"fixed", value: number, label: string } */
+/* current discount: null, or { type: "percent"|"fixed", value: number, label: string|null }
+   label is the promo's name, or null for a typed-in discount (shown as "Discount (10%)"
+   in whatever language is active — see discountLabelText) */
 let discount = null;
 
 function getSubtotal(){
@@ -425,12 +437,18 @@ function getDiscountAmount(){
 function getGrandTotal(){
   return getSubtotal() - getDiscountAmount();
 }
+function discountLabelText(){
+  if (discount.label) return discount.label;
+  return discount.type === "percent"
+    ? t("order.discountPercent", { value: discount.value })
+    : t("order.discount");
+}
 
 function renderOrder(){
   const ids = Object.keys(order);
   orderList.innerHTML = "";
   if (ids.length === 0){
-    orderList.innerHTML = `<li class="empty-msg">Nothing added yet</li>`;
+    orderList.innerHTML = `<li class="empty-msg">${t("order.empty")}</li>`;
     checkoutBtn.disabled = true;
   } else {
     ids.forEach(id => {
@@ -446,7 +464,7 @@ function renderOrder(){
         </div>
         <div class="l-right">
           ${money(p.price * qty)}<br>
-          <button class="remove" data-id="${id}">remove</button>
+          <button class="remove" data-id="${id}">${t("common.remove")}</button>
         </div>
       `;
       orderList.appendChild(li);
@@ -463,7 +481,7 @@ function renderTotals(){
   subtotalAmount.textContent = money(getSubtotal());
   if (discount){
     discountRow.style.display = "flex";
-    discountLabel.textContent = discount.label;
+    discountLabel.textContent = discountLabelText();
     discountAmountDisplay.textContent = "–" + money(getDiscountAmount());
   } else {
     discountRow.style.display = "none";
@@ -502,7 +520,7 @@ function setDiscountType(type){
   discountType = type;
   dtabPercent.classList.toggle("active", type === "percent");
   dtabFixed.classList.toggle("active", type === "fixed");
-  discountValue.placeholder = type === "percent" ? "e.g. 10" : "e.g. 20";
+  discountValue.placeholder = type === "percent" ? t("order.examplePercent") : t("order.exampleFixed");
 }
 
 // Promos are editable in the "Manage Promos" tab — tap one here to apply it instantly
@@ -535,8 +553,7 @@ applyDiscountBtn.addEventListener("click", () => {
     discountValue.focus();
     return;
   }
-  const label = discountType === "percent" ? `Discount (${value}%)` : "Discount";
-  discount = { type: discountType, value, label };
+  discount = { type: discountType, value, label: null };
   discountValue.value = "";
   discountForm.style.display = "none";
   renderTotals();
@@ -571,13 +588,13 @@ function setPromoFormType(type){
   promoFormType = type;
   promoTabPercent.classList.toggle("active", type === "percent");
   promoTabFixed.classList.toggle("active", type === "fixed");
-  promoValueLabel.textContent = type === "percent" ? "Percent Off" : "Amount Off (₱)";
-  promoValueInput.placeholder = type === "percent" ? "e.g. 20" : "e.g. 20.00";
+  promoValueLabel.textContent = type === "percent" ? t("promos.percentOff") : t("promos.amountOff");
+  promoValueInput.placeholder = type === "percent" ? t("promos.examplePercent") : t("promos.exampleFixed");
 }
 
 function openPromoForm(promo){
   editingPromoId = promo ? promo.id : null;
-  promoFormTitle.textContent = promo ? "Edit Promo" : "Add Promo";
+  promoFormTitle.textContent = promo ? t("promos.edit") : t("promos.add");
   promoFormError.style.display = "none";
   promoNameInput.value = promo ? promo.label : "";
   promoValueInput.value = promo ? promo.value : "";
@@ -623,26 +640,28 @@ document.getElementById("savePromoBtn").addEventListener("click", () => {
 function renderPromoList(){
   promoList.innerHTML = "";
   if (PROMOS.length === 0){
-    promoList.innerHTML = `<div class="empty-manage">No promos yet — add your first one.</div>`;
+    promoList.innerHTML = `<div class="empty-manage">${t("promos.empty")}</div>`;
     return;
   }
   PROMOS.forEach(promo => {
     const row = document.createElement("div");
     row.className = "manage-row";
-    const valueText = promo.type === "percent" ? `${promo.value}% off order` : `₱${promo.value} off order`;
+    const valueText = promo.type === "percent"
+      ? t("promos.percentOffOrder", { value: promo.value })
+      : t("promos.fixedOffOrder", { value: promo.value });
     row.innerHTML = `
       <div class="info">
         <div class="r-name">${promo.label}</div>
         <div class="r-price">${valueText}</div>
       </div>
       <div class="row-actions">
-        <button class="btn-edit">Edit</button>
-        <button class="btn-delete">Delete</button>
+        <button class="btn-edit">${t("common.edit")}</button>
+        <button class="btn-delete">${t("common.delete")}</button>
       </div>
     `;
     row.querySelector(".btn-edit").addEventListener("click", () => openPromoForm(promo));
     row.querySelector(".btn-delete").addEventListener("click", () => {
-      if (!confirm(`Remove the "${promo.label}" promo?`)) return;
+      if (!confirm(t("promos.confirmDelete", { name: promo.label }))) return;
       PROMOS = PROMOS.filter(p => p.id !== promo.id);
       renderPromoList();
       renderQuickDiscounts();
@@ -680,7 +699,7 @@ QUICK_AMOUNTS.forEach(amt => {
 });
 const exactBtn = document.createElement("button");
 exactBtn.type = "button";
-exactBtn.textContent = "Exact";
+exactBtn.textContent = t("payment.exact");
 exactBtn.addEventListener("click", () => {
   cashReceivedInput.value = getGrandTotal().toFixed(2);
   updateChangeDisplay();
@@ -688,7 +707,7 @@ exactBtn.addEventListener("click", () => {
 quickCash.appendChild(exactBtn);
 const clearBtn = document.createElement("button");
 clearBtn.type = "button";
-clearBtn.textContent = "Clear";
+clearBtn.textContent = t("payment.clear");
 clearBtn.className = "clear-btn";
 clearBtn.addEventListener("click", () => {
   cashReceivedInput.value = "";
@@ -704,7 +723,7 @@ function updateChangeDisplay(){
   const change = cash - total;
 
   if (cash <= 0){
-    changeLabel.textContent = "Change";
+    changeLabel.textContent = t("payment.change");
     changeAmount.textContent = money(0);
     changeRow.classList.remove("insufficient", "ok");
     paymentError.style.display = "none";
@@ -713,14 +732,14 @@ function updateChangeDisplay(){
   }
 
   if (change < 0){
-    changeLabel.textContent = "Still Due";
+    changeLabel.textContent = t("payment.stillDue");
     changeAmount.textContent = money(Math.abs(change));
     changeRow.classList.add("insufficient");
     changeRow.classList.remove("ok");
     paymentError.style.display = "block";
     confirmPaymentBtn.disabled = true;
   } else {
-    changeLabel.textContent = "Change";
+    changeLabel.textContent = t("payment.change");
     changeAmount.textContent = money(change);
     changeRow.classList.add("ok");
     changeRow.classList.remove("insufficient");
@@ -760,7 +779,7 @@ const receiptCash  = document.getElementById("receiptCash");
 const receiptChange = document.getElementById("receiptChange");
 
 function showReceipt(){
-  receiptMeta.textContent = new Date().toLocaleString();
+  receiptMeta.textContent = new Date().toLocaleString("en-PH");
   receiptLines.innerHTML = "";
   Object.entries(order).forEach(([id, qty]) => {
     const p = PRODUCTS.find(pr => pr.id === id);
@@ -773,7 +792,7 @@ function showReceipt(){
   receiptSubtotal.textContent = money(getSubtotal());
   if (discount){
     receiptDiscountRow.style.display = "flex";
-    receiptDiscountLabel.textContent = discount.label;
+    receiptDiscountLabel.textContent = discountLabelText();
     receiptDiscountAmount.textContent = "–" + money(getDiscountAmount());
   } else {
     receiptDiscountRow.style.display = "none";
@@ -870,7 +889,7 @@ document.getElementById("cancelFormBtn").addEventListener("click", () => {
 
 function openForm(product){
   editingId = product ? product.id : null;
-  formTitle.textContent = product ? "Edit Product" : "Add Product";
+  formTitle.textContent = product ? t("products.edit") : t("products.add");
   formError.style.display = "none";
 
   pName.value  = product ? product.name : "";
@@ -912,8 +931,8 @@ document.getElementById("saveProductBtn").addEventListener("click", () => {
 
   if (!name || !unit || isNaN(price) || price < 0 || !hasPicture){
     formError.textContent = !hasPicture
-      ? "Please choose an icon or upload a photo."
-      : "Please fill in a name, price, and unit.";
+      ? t("products.errorPicture")
+      : t("products.errorFields");
     formError.style.display = "block";
     return;
   }
@@ -944,7 +963,7 @@ document.getElementById("saveProductBtn").addEventListener("click", () => {
 function renderManageList(){
   manageList.innerHTML = "";
   if (PRODUCTS.length === 0){
-    manageList.innerHTML = `<div class="empty-manage">No products yet — add your first one.</div>`;
+    manageList.innerHTML = `<div class="empty-manage">${t("products.empty")}</div>`;
     return;
   }
   PRODUCTS.forEach(p => {
@@ -957,13 +976,13 @@ function renderManageList(){
         <div class="r-price">${money(p.price)} / ${p.unit}</div>
       </div>
       <div class="row-actions">
-        <button class="btn-edit">Edit</button>
-        <button class="btn-delete">Delete</button>
+        <button class="btn-edit">${t("common.edit")}</button>
+        <button class="btn-delete">${t("common.delete")}</button>
       </div>
     `;
     row.querySelector(".btn-edit").addEventListener("click", () => openForm(p));
     row.querySelector(".btn-delete").addEventListener("click", () => {
-      if (!confirm(`Remove "${p.name}" from the product list?`)) return;
+      if (!confirm(t("products.confirmDelete", { name: p.name }))) return;
       PRODUCTS = PRODUCTS.filter(pr => pr.id !== p.id);
       removeFromOrder(p.id);
       renderProducts();
@@ -972,6 +991,101 @@ function renderManageList(){
     manageList.appendChild(row);
   });
 }
+
+/* =========================================================
+   SETTINGS (⚙ top right)
+   Background color and language. Both engines live in
+   settings/ and save to localStorage; this is just the popup.
+========================================================= */
+const settingsOverlay = document.getElementById("settingsOverlay");
+const swatchGrid      = document.getElementById("swatchGrid");
+const themeSaved      = document.getElementById("themeSaved");
+const langList        = document.getElementById("langList");
+
+let previousTheme = null; // for the Undo button after picking a color
+
+document.getElementById("settingsBtn").addEventListener("click", () => {
+  previousTheme = null;
+  themeSaved.classList.remove("show");
+  renderSwatches();
+  renderLangList();
+  settingsOverlay.classList.add("show");
+});
+document.getElementById("closeSettingsBtn").addEventListener("click", () => {
+  settingsOverlay.classList.remove("show");
+});
+document.getElementById("themeUndoBtn").addEventListener("click", () => {
+  if (!previousTheme) return;
+  coopTheme.save(previousTheme);
+  previousTheme = null;
+  themeSaved.classList.remove("show");
+  renderSwatches();
+});
+
+function renderSwatches(){
+  const current = coopTheme.get().toLowerCase();
+  swatchGrid.innerHTML = "";
+  coopTheme.PRESETS.forEach(preset => {
+    const selected = preset.hex.toLowerCase() === current;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "swatch" + (selected ? " selected" : "");
+    btn.style.background = preset.hex;
+    btn.title = preset.name;
+    btn.setAttribute("aria-label", preset.name);
+    btn.setAttribute("aria-pressed", selected ? "true" : "false");
+    btn.innerHTML = `<span class="check">✓</span>`;
+    btn.addEventListener("click", () => {
+      if (selected) return;
+      previousTheme = coopTheme.get();
+      coopTheme.save(preset.hex);
+      themeSaved.classList.add("show");
+      renderSwatches();
+    });
+    swatchGrid.appendChild(btn);
+  });
+}
+
+function renderLangList(){
+  const current = coopLang.get();
+  langList.innerHTML = "";
+  coopLang.list().forEach(lang => {
+    const selected = lang.code === current;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "lang-option" + (selected ? " selected" : "");
+    btn.lang = lang.htmlLang || lang.code;
+    btn.setAttribute("aria-pressed", selected ? "true" : "false");
+    btn.innerHTML = `
+      <span class="lang-badge" aria-hidden="true">${lang.badge || lang.code.toUpperCase()}</span>
+      <span class="lang-text">
+        <span class="lang-name">${lang.name || lang.code}</span>
+        <span class="lang-sample">${lang.sample || ""}</span>
+      </span>
+      <span class="check" aria-hidden="true">✓</span>
+    `;
+    btn.addEventListener("click", () => coopLang.set(lang.code));
+    langList.appendChild(btn);
+  });
+}
+
+// After a language switch the data-i18n text is already updated;
+// redraw everything script.js builds itself, keeping any open form as it was.
+coopLang.onChange(() => {
+  renderProducts();
+  renderOrder();
+  renderManageList();
+  renderPromoList();
+  renderLangList();
+  setDiscountType(discountType);
+  setPromoFormType(promoFormType);
+  formTitle.textContent = editingId ? t("products.edit") : t("products.add");
+  promoFormTitle.textContent = editingPromoId ? t("promos.edit") : t("promos.add");
+  exactBtn.textContent = t("payment.exact");
+  clearBtn.textContent = t("payment.clear");
+  updateChangeDisplay();
+  if (googleSignInBtn.style.display !== "none") renderGoogleButton();
+});
 
 /* ---------- Init ---------- */
 renderProducts();
