@@ -12,9 +12,12 @@ No backend yet — everything (products, promos, the current order) lives in the
 
 | File | What it does |
 |---|---|
-| `index.html` | Page structure — the three tabs (Order Kiosk / Manage Products / Manage Promos), the login screen, the payment and receipt popups |
+| `index.html` | Page structure — the three tabs (Order Kiosk / Manage Products / Manage Promos), the login screen, the payment, receipt and settings popups |
 | `styles.css` | All styling/theme |
-| `script.js` | All app logic — products, cart, discounts, payment, receipt, Google Sign-In |
+| `script.js` | All app logic — products, cart, discounts, payment, receipt, Google Sign-In, the settings popup |
+| `settings/theme-engine.js` | Background color presets; applies the saved color before the page shows |
+| `settings/translations.js` | Every piece of on-screen text in English, Tagalog and Ilocano |
+| `settings/language-engine.js` | Picks the text for the current language (`t("key")`) and swaps it on the page |
 
 No build step, no frameworks, no dependencies — it's plain HTML/CSS/JS. Anyone can open it in any code editor.
 
@@ -54,6 +57,23 @@ If you don't need to test sign-in and just want to look at the app, you can skip
 5. The live site at the link above rebuilds automatically about a minute after you push (it's hosted via GitHub Pages, set to deploy from the `main` branch).
 
 **Before you start editing each session:** run `git pull` first, so you're working from the latest version and don't overwrite someone else's changes.
+
+---
+
+## Settings — theme & language
+
+The ⚙ button (top right, next to your name) opens a popup with:
+
+- **Background color** — 7 presets. Light backgrounds automatically switch the text to dark. There's an Undo right after you pick one.
+- **Language** — English, Tagalog, Ilocano. Changes the whole app instantly, including the Google button.
+
+Both are remembered per device (`localStorage`). The popup sits over the kiosk, so an order in progress isn't lost.
+
+**Changing or adding text:** every label lives in `settings/translations.js`. In `index.html`, an element with `data-i18n="some.key"` gets its text from there; in `script.js` it's `t("some.key")`. If a key is missing in a language, the English text is used. To add a language, copy the whole `en` block, give it a new code, and translate only the right-hand side.
+
+**Ilocano still needs a native speaker to check it** — a few strings look off (e.g. "✓ Saved" is currently `"I-save"`, "Edit" is `"Sukatan"`).
+
+Theme + language features adapted from [SeNpAiJD/COOP](https://github.com/SeNpAiJD/COOP).
 
 ---
 
