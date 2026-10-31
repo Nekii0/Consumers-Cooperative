@@ -272,27 +272,33 @@ function iconHtmlFor(p){
   return ICONS[p.iconKey] || ICONS.basket;
 }
 
-/* ---------- Page tabs (Order Kiosk / Manage Products / Manage Promos) ---------- */
+/* ---------- Page tabs (Order Kiosk / Manage Products / Manage Promos / Volunteers) ---------- */
 const tabOrder   = document.getElementById("tabOrder");
 const tabManage  = document.getElementById("tabManage");
 const tabPromos  = document.getElementById("tabPromos");
+const tabVolunteers  = document.getElementById("tabVolunteers");
 const kioskView  = document.getElementById("kioskView");
 const manageView = document.getElementById("manageView");
 const promosView = document.getElementById("promosView");
+const volunteersView = document.getElementById("volunteersView");
 
 tabOrder.addEventListener("click", () => switchView("order"));
 tabManage.addEventListener("click", () => switchView("manage"));
 tabPromos.addEventListener("click", () => switchView("promos"));
+tabVolunteers.addEventListener("click", () => switchView("volunteers"));
 
 function switchView(view){
   kioskView.classList.toggle("active", view === "order");
   manageView.classList.toggle("active", view === "manage");
   promosView.classList.toggle("active", view === "promos");
+  volunteersView.classList.toggle("active", view === "volunteers");
   tabOrder.classList.toggle("active", view === "order");
   tabManage.classList.toggle("active", view === "manage");
   tabPromos.classList.toggle("active", view === "promos");
+  tabVolunteers.classList.toggle("active", view === "volunteers");
   if (view === "manage") renderManageList();
   if (view === "promos") renderPromoList();
+  if (view === "volunteers") renderVolunteerList();
 }
 
 /* Common unit labels offered in the quick dropdown, each with a
@@ -993,6 +999,219 @@ function renderManageList(){
 }
 
 /* =========================================================
+   VOLUNTEERS VIEW
+   Sign-up form + list of co-op volunteers. Unlike products
+   and promos, volunteers are saved to localStorage so sign-ups
+   survive a page reload; "Export CSV" downloads them for a
+   spreadsheet or backup. Like the rest of the app, this is
+   per-browser until a shared backend exists.
+========================================================= */
+const VOLUNTEER_DAYS  = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const VOLUNTEER_TIMES = ["morning", "afternoon", "evening"];
+const VOLUNTEER_TASKS = ["cashier", "stocking", "cleaning", "delivery", "bookkeeping", "events"];
+
+const volunteerList       = document.getElementById("volunteerList");
+const volunteerCount      = document.getElementById("volunteerCount");
+const volunteerSearch     = document.getElementById("volunteerSearch");
+const volunteerFormPanel  = document.getElementById("volunteerFormPanel");
+const volunteerFormTitle  = document.getElementById("volunteerFormTitle");
+const volunteerFormError  = document.getElementById("volunteerFormError");
+const vName    = document.getElementById("vName");
+const vPhone   = document.getElementById("vPhone");
+const vEmail   = document.getElementById("vEmail");
+const vAddress = document.getElementById("vAddress");
+const vNotes   = document.getElementById("vNotes");
+const vMemberYes = document.getElementById("vMemberYes");
+const vMemberNo  = document.getElementById("vMemberNo");
+
+// each volunteer: { id, name, phone, email, address, member, days[], times[], tasks[], notes, createdAt }
+let VOLUNTEERS = [];
+try {
+  VOLUNTEERS = JSON.parse(localStorage.getItem("coopVolunteers")) || [];
+} catch(e){ /* ignore bad or unavailable cache */ }
+
+function saveVolunteers(){
+  try { localStorage.setItem("coopVolunteers", JSON.stringify(VOLUNTEERS)); } catch(e){ }
+}
+
+let editingVolunteerId = null; // null = new sign-up, otherwise the id being edited
+let volunteerMember = true;
+const volunteerPicks = { days: [], times: [], tasks: [] };
+
+// Volunteers type their own details, so escape before putting them in HTML
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* Tap-to-toggle chip rows (days / times / tasks); prefix is the translation group */
+function renderChips(containerId, codes, prefix, group){
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+  codes.forEach(code => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const on = volunteerPicks[group].includes(code);
+    btn.className = "source-tab chip" + (on ? " active" : "");
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.textContent = t(`${prefix}.${code}`);
+    btn.addEventListener("click", () => {
+      const picks = volunteerPicks[group];
+      volunteerPicks[group] = picks.includes(code) ? picks.filter(c => c !== code) : picks.concat(code);
+      renderChips(containerId, codes, prefix, group);
+    });
+    container.appendChild(btn);
+  });
+}
+function renderVolunteerChips(){
+  renderChips("vDays",  VOLUNTEER_DAYS,  "day",  "days");
+  renderChips("vTimes", VOLUNTEER_TIMES, "time", "times");
+  renderChips("vTasks", VOLUNTEER_TASKS, "task", "tasks");
+}
+
+function setVolunteerMember(isMember){
+  volunteerMember = isMember;
+  vMemberYes.classList.toggle("active", isMember);
+  vMemberNo.classList.toggle("active", !isMember);
+}
+vMemberYes.addEventListener("click", () => setVolunteerMember(true));
+vMemberNo.addEventListener("click", () => setVolunteerMember(false));
+
+function openVolunteerForm(vol){
+  editingVolunteerId = vol ? vol.id : null;
+  volunteerFormTitle.textContent = vol ? t("volunteers.edit") : t("volunteers.signup");
+  volunteerFormError.style.display = "none";
+  vName.value    = vol ? vol.name : "";
+  vPhone.value   = vol ? vol.phone : "";
+  vEmail.value   = vol ? vol.email : "";
+  vAddress.value = vol ? vol.address : "";
+  vNotes.value   = vol ? vol.notes : "";
+  setVolunteerMember(vol ? vol.member : true);
+  volunteerPicks.days  = vol ? vol.days.slice()  : [];
+  volunteerPicks.times = vol ? vol.times.slice() : [];
+  volunteerPicks.tasks = vol ? vol.tasks.slice() : [];
+  renderVolunteerChips();
+  volunteerFormPanel.style.display = "block";
+  vName.focus();
+}
+
+document.getElementById("addVolunteerBtn").addEventListener("click", () => openVolunteerForm(null));
+document.getElementById("cancelVolunteerBtn").addEventListener("click", () => {
+  volunteerFormPanel.style.display = "none";
+});
+
+document.getElementById("saveVolunteerBtn").addEventListener("click", () => {
+  const name  = vName.value.trim().replace(/\s+/g, " ");
+  const phone = vPhone.value.trim();
+  const email = vEmail.value.trim();
+  let error = null;
+  if (!name) error = "volunteers.errorName";
+  else if (phone.replace(/\D/g, "").length < 7) error = "volunteers.errorPhone";
+  else if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) error = "volunteers.errorEmail";
+  else if (volunteerPicks.days.length === 0) error = "volunteers.errorDays";
+  if (error){
+    volunteerFormError.textContent = t(error);
+    volunteerFormError.style.display = "block";
+    return;
+  }
+
+  // keep chip picks in their canonical order (Mon→Sun etc.)
+  const fields = {
+    name, phone, email,
+    address: vAddress.value.trim(),
+    member: volunteerMember,
+    days:  VOLUNTEER_DAYS.filter(c => volunteerPicks.days.includes(c)),
+    times: VOLUNTEER_TIMES.filter(c => volunteerPicks.times.includes(c)),
+    tasks: VOLUNTEER_TASKS.filter(c => volunteerPicks.tasks.includes(c)),
+    notes: vNotes.value.trim()
+  };
+  if (editingVolunteerId){
+    Object.assign(VOLUNTEERS.find(v => v.id === editingVolunteerId), fields);
+  } else {
+    VOLUNTEERS.push(Object.assign({ id: "vol-" + Date.now(), createdAt: new Date().toISOString() }, fields));
+  }
+  saveVolunteers();
+  volunteerFormPanel.style.display = "none";
+  renderVolunteerList();
+});
+
+volunteerSearch.addEventListener("input", renderVolunteerList);
+
+function renderVolunteerList(){
+  volunteerCount.textContent = VOLUNTEERS.length;
+  volunteerList.innerHTML = "";
+  if (VOLUNTEERS.length === 0){
+    volunteerList.innerHTML = `<div class="empty-manage">${t("volunteers.empty")}</div>`;
+    return;
+  }
+  const query = volunteerSearch.value.trim().toLowerCase();
+  const matches = VOLUNTEERS.filter(v => {
+    if (!query) return true;
+    const haystack = [v.name, v.phone, v.email, v.address].concat(v.tasks.map(c => t(`task.${c}`))).join(" ").toLowerCase();
+    return haystack.includes(query);
+  });
+  if (matches.length === 0){
+    volunteerList.innerHTML = `<div class="empty-manage">${t("volunteers.noMatch")}</div>`;
+    return;
+  }
+  matches.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(vol => {
+    const row = document.createElement("div");
+    row.className = "manage-row volunteer-row";
+    const days  = vol.days.map(c => t(`day.${c}`)).join(", ");
+    const times = vol.times.map(c => t(`time.${c}`)).join(", ");
+    const tasks = vol.tasks.map(c => `<span class="task-tag">${t(`task.${c}`)}</span>`).join("");
+    row.innerHTML = `
+      <div class="info">
+        <div class="r-name">${escapeHtml(vol.name)}${vol.member ? ` <span class="member-tag">${t("volunteers.memberTag")}</span>` : ""}</div>
+        <div class="r-price">${escapeHtml(vol.phone)}${vol.email ? " · " + escapeHtml(vol.email) : ""}</div>
+        <div class="r-price">${days}${times ? " · " + times : ""}</div>
+        ${tasks ? `<div class="task-tags">${tasks}</div>` : ""}
+      </div>
+      <div class="row-actions">
+        <button class="btn-edit">${t("common.edit")}</button>
+        <button class="btn-delete">${t("common.delete")}</button>
+      </div>
+    `;
+    row.querySelector(".btn-edit").addEventListener("click", () => openVolunteerForm(vol));
+    row.querySelector(".btn-delete").addEventListener("click", () => {
+      if (!confirm(t("volunteers.confirmDelete", { name: vol.name }))) return;
+      VOLUNTEERS = VOLUNTEERS.filter(v => v.id !== vol.id);
+      saveVolunteers();
+      if (editingVolunteerId === vol.id) volunteerFormPanel.style.display = "none";
+      renderVolunteerList();
+    });
+    volunteerList.appendChild(row);
+  });
+}
+
+/* Download every volunteer as a CSV (opens in Excel / Google Sheets).
+   Codes are written in English so the file reads the same whoever exports it. */
+document.getElementById("exportVolunteersBtn").addEventListener("click", () => {
+  const en = key => coopLang.t(key, null, "en");
+  const cell = val => {
+    let str = String(val);
+    // stop typed text like "=HYPERLINK(...)" running as a formula when opened in a spreadsheet
+    if (/^[=@\t\r]|^[+-][^\d\s]/.test(str)) str = "'" + str;
+    return `"${str.replace(/"/g, '""')}"`;
+  };
+  const header = ["Name", "Mobile", "Email", "Address", "Member", "Days", "Times", "Tasks", "Notes", "Signed up"];
+  const rows = VOLUNTEERS.map(v => [
+    v.name, v.phone, v.email, v.address, v.member ? "Yes" : "No",
+    v.days.map(c => en(`day.${c}`)).join(", "),
+    v.times.map(c => en(`time.${c}`)).join(", "),
+    v.tasks.map(c => en(`task.${c}`)).join(", "),
+    v.notes, v.createdAt.slice(0, 10)
+  ]);
+  const csv = [header].concat(rows).map(r => r.map(cell).join(",")).join("\r\n");
+  // \uFEFF tells Excel the file is UTF-8 (keeps ñ and ₱ intact)
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `volunteers-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+
+/* =========================================================
    SETTINGS (⚙ top right)
    Background color and language. Both engines live in
    settings/ and save to localStorage; this is just the popup.
@@ -1076,11 +1295,14 @@ coopLang.onChange(() => {
   renderOrder();
   renderManageList();
   renderPromoList();
+  renderVolunteerList();
+  renderVolunteerChips();
   renderLangList();
   setDiscountType(discountType);
   setPromoFormType(promoFormType);
   formTitle.textContent = editingId ? t("products.edit") : t("products.add");
   promoFormTitle.textContent = editingPromoId ? t("promos.edit") : t("promos.add");
+  volunteerFormTitle.textContent = editingVolunteerId ? t("volunteers.edit") : t("volunteers.signup");
   exactBtn.textContent = t("payment.exact");
   clearBtn.textContent = t("payment.clear");
   updateChangeDisplay();

@@ -64,6 +64,7 @@
     <button class="tab-btn active" id="tabOrder" data-i18n="tabs.order">🛒 Order Kiosk</button>
     <button class="tab-btn" id="tabManage" data-i18n="tabs.manage">🛠 Manage Products</button>
     <button class="tab-btn" id="tabPromos" data-i18n="tabs.promos">🏷 Manage Promos</button>
+    <button class="tab-btn" id="tabVolunteers" data-i18n="tabs.volunteers">🙋 Volunteers</button>
   </nav>
 
   <!-- ============ ORDER KIOSK VIEW ============ -->
@@ -209,6 +210,89 @@
         <div class="form-actions">
           <button class="btn-print" id="cancelPromoBtn" data-i18n="common.cancel">Cancel</button>
           <button class="btn-new" id="savePromoBtn" data-i18n="promos.save">Save Promo</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ VOLUNTEERS VIEW ============
+       Sign-up form for co-op volunteers, plus the list of who has signed up.
+       Saved in this browser (localStorage) — use Export CSV to share or back up. -->
+  <div class="view" id="volunteersView">
+    <div class="manage-layout">
+
+      <div class="manage-panel">
+        <h2>
+          <span><span data-i18n="volunteers.title">Volunteers</span> <span class="count-badge" id="volunteerCount">0</span></span>
+          <span class="h2-actions">
+            <button type="button" class="btn-secondary" id="exportVolunteersBtn" data-i18n="volunteers.export">⬇ Export CSV</button>
+            <button type="button" id="addVolunteerBtn" data-i18n="products.addNew">+ Add New</button>
+          </span>
+        </h2>
+        <div class="form-field">
+          <input type="search" id="volunteerSearch" placeholder="Search name, phone or task" data-i18n-placeholder="volunteers.search">
+        </div>
+        <div class="manage-list" id="volunteerList"></div>
+      </div>
+
+      <div class="manage-panel" id="volunteerFormPanel" style="display:none;">
+        <h2 id="volunteerFormTitle">Volunteer Sign-up</h2>
+
+        <div class="form-field">
+          <label for="vName" data-i18n="volunteers.name">Full Name</label>
+          <input type="text" id="vName" autocomplete="name" placeholder="e.g. Juan Dela Cruz" data-i18n-placeholder="volunteers.namePlaceholder">
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="vPhone" data-i18n="volunteers.phone">Mobile Number</label>
+            <input type="tel" id="vPhone" autocomplete="tel" placeholder="09XX XXX XXXX">
+          </div>
+          <div class="form-field">
+            <label for="vEmail" data-i18n="volunteers.email">Email (optional)</label>
+            <input type="email" id="vEmail" autocomplete="email" placeholder="name@example.com">
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="vAddress" data-i18n="volunteers.address">Address / Barangay</label>
+          <input type="text" id="vAddress" autocomplete="street-address">
+        </div>
+
+        <div class="form-field">
+          <label data-i18n="volunteers.member">Co-op member?</label>
+          <div class="icon-source-tabs">
+            <button type="button" class="source-tab active" id="vMemberYes" data-i18n="volunteers.yes">Yes</button>
+            <button type="button" class="source-tab" id="vMemberNo" data-i18n="volunteers.no">No</button>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label data-i18n="volunteers.days">Days available</label>
+          <div class="chip-group" id="vDays"></div>
+        </div>
+
+        <div class="form-field">
+          <label data-i18n="volunteers.times">Time of day</label>
+          <div class="chip-group" id="vTimes"></div>
+        </div>
+
+        <div class="form-field">
+          <label data-i18n="volunteers.tasks">Can help with</label>
+          <div class="chip-group" id="vTasks"></div>
+        </div>
+
+        <div class="form-field">
+          <label for="vNotes" data-i18n="volunteers.notes">Notes (skills, emergency contact, etc.)</label>
+          <textarea id="vNotes" rows="3"></textarea>
+        </div>
+
+        <div class="form-error" id="volunteerFormError"></div>
+
+        <div class="form-actions">
+          <button class="btn-print" id="cancelVolunteerBtn" data-i18n="common.cancel">Cancel</button>
+          <button class="btn-new" id="saveVolunteerBtn" data-i18n="volunteers.save">Save Volunteer</button>
         </div>
       </div>
 

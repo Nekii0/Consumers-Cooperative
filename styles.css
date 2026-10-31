@@ -135,6 +135,7 @@
   /* ---------- Page tabs ---------- */
   .view-tabs{
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 10px;
     margin: 18px 0 24px;
@@ -387,11 +388,12 @@
     display: block; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;
     color: #8A8271; margin-bottom: 5px;
   }
-  .form-field input, .form-field select{
+  .form-field input, .form-field select, .form-field textarea{
     width: 100%; padding: 9px 10px; border-radius: 6px; border: 1px solid var(--paper-line);
     background: #fff; color: #2B2620; font-family: 'Work Sans', sans-serif; font-size: 0.95rem;
   }
-  .form-field input:focus, .form-field select:focus{ outline: none; border-color: var(--yolk-dark); }
+  .form-field textarea{ resize: vertical; min-height: 64px; }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus{ outline: none; border-color: var(--yolk-dark); }
   .form-row{ display: flex; gap: 10px; }
   .form-row .form-field{ flex: 1; }
 
@@ -495,6 +497,29 @@
   .remove-discount-btn{
     background: none; border: none; color: var(--tomato); font-size: 0.72rem;
     text-decoration: underline; cursor: pointer; margin-left: 8px; padding: 0;
+  }
+
+  /* ---------- Volunteers view ---------- */
+  #volunteersView .manage-panel h2{ flex-wrap: wrap; gap: 8px; }
+  .manage-panel h2 .h2-actions{ display: flex; gap: 6px; }
+  .manage-panel h2 .h2-actions button{ white-space: nowrap; }
+  .manage-panel h2 .btn-secondary{ background: rgba(43,38,32,0.08); color: #2B2620; }
+  .count-badge{
+    display: inline-block; min-width: 24px; padding: 1px 7px; margin-left: 4px; border-radius: 999px;
+    background: var(--leaf); color: #fff; font-size: 0.75rem; text-align: center; vertical-align: middle;
+  }
+  .chip-group{ display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip-group .chip{ flex: 0 0 auto; padding: 8px 12px; }
+  .volunteer-row{ align-items: flex-start; }
+  .volunteer-row .r-price + .r-price{ margin-top: 2px; }
+  .member-tag{
+    display: inline-block; padding: 1px 7px; border-radius: 999px; margin-left: 4px;
+    background: #E4EFDA; color: #23361A; font-size: 0.7rem; font-weight: 700; vertical-align: middle;
+  }
+  .task-tags{ display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .task-tag{
+    padding: 2px 8px; border-radius: 999px; background: #FBEFD8; color: #7A5418;
+    font-size: 0.72rem; font-weight: 600;
   }
 
   /* ---------- Settings popup (theme + language) ---------- */

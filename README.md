@@ -12,9 +12,9 @@ No backend yet — everything (products, promos, the current order) lives in the
 
 | File | What it does |
 |---|---|
-| `index.html` | Page structure — the three tabs (Order Kiosk / Manage Products / Manage Promos), the login screen, the payment, receipt and settings popups |
+| `index.html` | Page structure — the four tabs (Order Kiosk / Manage Products / Manage Promos / Volunteers), the login screen, the payment, receipt and settings popups |
 | `styles.css` | All styling/theme |
-| `script.js` | All app logic — products, cart, discounts, payment, receipt, Google Sign-In, the settings popup |
+| `script.js` | All app logic — products, cart, discounts, payment, receipt, volunteers, Google Sign-In, the settings popup |
 | `settings/theme-engine.js` | Background color presets; applies the saved color before the page shows |
 | `settings/translations.js` | Every piece of on-screen text in English, Tagalog and Ilocano |
 | `settings/language-engine.js` | Picks the text for the current language (`t("key")`) and swaps it on the page |
@@ -57,6 +57,16 @@ If you don't need to test sign-in and just want to look at the app, you can skip
 5. The live site at the link above rebuilds automatically about a minute after you push (it's hosted via GitHub Pages, set to deploy from the `main` branch).
 
 **Before you start editing each session:** run `git pull` first, so you're working from the latest version and don't overwrite someone else's changes.
+
+---
+
+## Volunteers
+
+The **🙋 Volunteers** tab has a sign-up form (name, mobile number, optional email and address, co-op member or not, days and time of day available, what they can help with, and notes) and a searchable list of everyone who has signed up.
+
+- Volunteers are saved in the browser (`localStorage`, key `coopVolunteers`), so they survive a page reload. They are **only on that device/browser**, though, and clearing the browser's site data deletes them.
+- **⬇ Export CSV** downloads the whole list for Excel / Google Sheets. Use it to share the list or as a backup.
+- The day, time and task choices are the `VOLUNTEER_DAYS` / `VOLUNTEER_TIMES` / `VOLUNTEER_TASKS` lists in `script.js`. To add a task, add a code there and a matching `"task.<code>"` line to each language in `settings/translations.js`.
 
 ---
 
