@@ -13,6 +13,9 @@
 ========================================================= */
 const GOOGLE_CLIENT_ID = "38253757162-3qvrfrj7u5cuqa47gtm7th6o39qbabf2.apps.googleusercontent.com";
 
+// Translated text for a key — see settings/translations.js
+const t = coopLang.t;
+
 let currentUser = null; // { name, email?, picture?, provider: "google"|"name" } once signed in
 
 const loginOverlay    = document.getElementById("loginOverlay");
@@ -101,7 +104,7 @@ function handleGoogleCredential(response){
       provider: "google"
     });
   } catch(e){
-    loginNote.textContent = "Google sign-in failed. Try again, or sign in with just a name.";
+    loginNote.textContent = t("login.failed");
   }
 }
 
@@ -112,21 +115,30 @@ function useNameOnlyLogin(reason){
   loginNote.textContent = reason || "";
 }
 
+// (Re)draw Google's button in the current language
+function renderGoogleButton(){
+  googleSignInBtn.innerHTML = "";
+  google.accounts.id.renderButton(googleSignInBtn, {
+    theme: "outline", size: "large", shape: "pill", text: "signin_with", width: 280,
+    locale: coopLang.info().googleLocale || "en"
+  });
+}
+
 let gsiWaitMs = 0;
 function initGoogleSignIn(){
   if (GOOGLE_CLIENT_ID.startsWith("YOUR_CLIENT_ID")){
-    useNameOnlyLogin("Google sign-in isn't set up yet (add GOOGLE_CLIENT_ID in script.js).");
+    useNameOnlyLogin(t("login.noClientId"));
     return;
   }
   if (location.protocol === "file:"){
-    useNameOnlyLogin("Google sign-in needs the page served over http/https — see the README.");
+    useNameOnlyLogin(t("login.needsHttp"));
     return;
   }
   if (!window.google || !google.accounts || !google.accounts.id){
     // Google's script loads async — wait for it, but give up if offline
     gsiWaitMs += 200;
     if (gsiWaitMs > 8000){
-      useNameOnlyLogin("Couldn't reach Google (offline?).");
+      useNameOnlyLogin(t("login.offline"));
       return;
     }
     setTimeout(initGoogleSignIn, 200);
@@ -136,9 +148,7 @@ function initGoogleSignIn(){
     client_id: GOOGLE_CLIENT_ID,
     callback: handleGoogleCredential
   });
-  google.accounts.id.renderButton(googleSignInBtn, {
-    theme: "outline", size: "large", shape: "pill", text: "signin_with", width: 280
-  });
+  renderGoogleButton();
   googleSignInBtn.style.display = "flex";
   mockGoogleBtn.style.display = "none";
   nameLoginLink.style.display = "inline";
@@ -262,27 +272,33 @@ function iconHtmlFor(p){
   return ICONS[p.iconKey] || ICONS.basket;
 }
 
-/* ---------- Page tabs (Order Kiosk / Manage Products / Manage Promos) ---------- */
+/* ---------- Page tabs (Order Kiosk / Manage Products / Manage Promos / Volunteers) ---------- */
 const tabOrder   = document.getElementById("tabOrder");
 const tabManage  = document.getElementById("tabManage");
 const tabPromos  = document.getElementById("tabPromos");
+const tabVolunteers  = document.getElementById("tabVolunteers");
 const kioskView  = document.getElementById("kioskView");
 const manageView = document.getElementById("manageView");
 const promosView = document.getElementById("promosView");
+const volunteersView = document.getElementById("volunteersView");
 
 tabOrder.addEventListener("click", () => switchView("order"));
 tabManage.addEventListener("click", () => switchView("manage"));
 tabPromos.addEventListener("click", () => switchView("promos"));
+tabVolunteers.addEventListener("click", () => switchView("volunteers"));
 
 function switchView(view){
   kioskView.classList.toggle("active", view === "order");
   manageView.classList.toggle("active", view === "manage");
   promosView.classList.toggle("active", view === "promos");
+  volunteersView.classList.toggle("active", view === "volunteers");
   tabOrder.classList.toggle("active", view === "order");
   tabManage.classList.toggle("active", view === "manage");
   tabPromos.classList.toggle("active", view === "promos");
+  tabVolunteers.classList.toggle("active", view === "volunteers");
   if (view === "manage") renderManageList();
   if (view === "promos") renderPromoList();
+  if (view === "volunteers") renderVolunteerList();
 }
 
 /* Common unit labels offered in the quick dropdown, each with a
@@ -315,21 +331,21 @@ function renderProducts(){
     const extraOption = hasCurrentUnit ? "" : `<option value="${p.unit}" selected>${p.unit}</option>`;
 
     card.innerHTML = `
-      <span class="stock-tag">Fresh</span>
+      <span class="stock-tag">${t("card.fresh")}</span>
       <div class="icon">${iconHtmlFor(p)}</div>
       <p class="name">${p.name}</p>
       <p class="price"><span class="price-text">${money(p.price)}</span> <small>/ <span class="unit-text">${p.unit}</span></small></p>
       <div class="qty-row">
-        <span class="price-edit-wrap" title="Change the price for this unit">₱<input type="number" class="price-edit" value="${p.price}" min="0" step="0.01"></span>
+        <span class="price-edit-wrap" title="${t("card.changePrice")}">₱<input type="number" class="price-edit" value="${p.price}" min="0" step="0.01"></span>
         <button type="button" class="qty-btn minus">–</button>
         <input type="number" class="qty-input" value="1" min="${p.step}" step="${p.step}">
         <button type="button" class="qty-btn plus">+</button>
-        <select class="unit-select" title="Change selling unit">
+        <select class="unit-select" title="${t("card.changeUnit")}">
           ${extraOption}${unitOptionsHtml}
-          <option value="__custom__">Custom…</option>
+          <option value="__custom__">${t("card.customUnit")}</option>
         </select>
       </div>
-      <button type="button" class="add-btn">Add to Order</button>
+      <button type="button" class="add-btn">${t("card.addToOrder")}</button>
     `;
     productGrid.appendChild(card);
 
@@ -358,7 +374,7 @@ function renderProducts(){
       let newUnit = unitSelect.value;
 
       if (newUnit === "__custom__"){
-        const typed = prompt("Sold per (e.g. sack, tray, box):", p.unit);
+        const typed = prompt(t("card.customUnitPrompt"), p.unit);
         if (!typed || !typed.trim()){
           unitSelect.value = p.unit; // cancelled — put the dropdown back
           return;
@@ -407,7 +423,9 @@ function removeFromOrder(productId){
   delete order[productId];
   renderOrder();
 }
-/* current discount: null, or { type: "percent"|"fixed", value: number, label: string } */
+/* current discount: null, or { type: "percent"|"fixed", value: number, label: string|null }
+   label is the promo's name, or null for a typed-in discount (shown as "Discount (10%)"
+   in whatever language is active — see discountLabelText) */
 let discount = null;
 
 function getSubtotal(){
@@ -425,12 +443,18 @@ function getDiscountAmount(){
 function getGrandTotal(){
   return getSubtotal() - getDiscountAmount();
 }
+function discountLabelText(){
+  if (discount.label) return discount.label;
+  return discount.type === "percent"
+    ? t("order.discountPercent", { value: discount.value })
+    : t("order.discount");
+}
 
 function renderOrder(){
   const ids = Object.keys(order);
   orderList.innerHTML = "";
   if (ids.length === 0){
-    orderList.innerHTML = `<li class="empty-msg">Nothing added yet</li>`;
+    orderList.innerHTML = `<li class="empty-msg">${t("order.empty")}</li>`;
     checkoutBtn.disabled = true;
   } else {
     ids.forEach(id => {
@@ -446,7 +470,7 @@ function renderOrder(){
         </div>
         <div class="l-right">
           ${money(p.price * qty)}<br>
-          <button class="remove" data-id="${id}">remove</button>
+          <button class="remove" data-id="${id}">${t("common.remove")}</button>
         </div>
       `;
       orderList.appendChild(li);
@@ -463,7 +487,7 @@ function renderTotals(){
   subtotalAmount.textContent = money(getSubtotal());
   if (discount){
     discountRow.style.display = "flex";
-    discountLabel.textContent = discount.label;
+    discountLabel.textContent = discountLabelText();
     discountAmountDisplay.textContent = "–" + money(getDiscountAmount());
   } else {
     discountRow.style.display = "none";
@@ -502,7 +526,7 @@ function setDiscountType(type){
   discountType = type;
   dtabPercent.classList.toggle("active", type === "percent");
   dtabFixed.classList.toggle("active", type === "fixed");
-  discountValue.placeholder = type === "percent" ? "e.g. 10" : "e.g. 20";
+  discountValue.placeholder = type === "percent" ? t("order.examplePercent") : t("order.exampleFixed");
 }
 
 // Promos are editable in the "Manage Promos" tab — tap one here to apply it instantly
@@ -535,8 +559,7 @@ applyDiscountBtn.addEventListener("click", () => {
     discountValue.focus();
     return;
   }
-  const label = discountType === "percent" ? `Discount (${value}%)` : "Discount";
-  discount = { type: discountType, value, label };
+  discount = { type: discountType, value, label: null };
   discountValue.value = "";
   discountForm.style.display = "none";
   renderTotals();
@@ -571,13 +594,13 @@ function setPromoFormType(type){
   promoFormType = type;
   promoTabPercent.classList.toggle("active", type === "percent");
   promoTabFixed.classList.toggle("active", type === "fixed");
-  promoValueLabel.textContent = type === "percent" ? "Percent Off" : "Amount Off (₱)";
-  promoValueInput.placeholder = type === "percent" ? "e.g. 20" : "e.g. 20.00";
+  promoValueLabel.textContent = type === "percent" ? t("promos.percentOff") : t("promos.amountOff");
+  promoValueInput.placeholder = type === "percent" ? t("promos.examplePercent") : t("promos.exampleFixed");
 }
 
 function openPromoForm(promo){
   editingPromoId = promo ? promo.id : null;
-  promoFormTitle.textContent = promo ? "Edit Promo" : "Add Promo";
+  promoFormTitle.textContent = promo ? t("promos.edit") : t("promos.add");
   promoFormError.style.display = "none";
   promoNameInput.value = promo ? promo.label : "";
   promoValueInput.value = promo ? promo.value : "";
@@ -623,26 +646,28 @@ document.getElementById("savePromoBtn").addEventListener("click", () => {
 function renderPromoList(){
   promoList.innerHTML = "";
   if (PROMOS.length === 0){
-    promoList.innerHTML = `<div class="empty-manage">No promos yet — add your first one.</div>`;
+    promoList.innerHTML = `<div class="empty-manage">${t("promos.empty")}</div>`;
     return;
   }
   PROMOS.forEach(promo => {
     const row = document.createElement("div");
     row.className = "manage-row";
-    const valueText = promo.type === "percent" ? `${promo.value}% off order` : `₱${promo.value} off order`;
+    const valueText = promo.type === "percent"
+      ? t("promos.percentOffOrder", { value: promo.value })
+      : t("promos.fixedOffOrder", { value: promo.value });
     row.innerHTML = `
       <div class="info">
         <div class="r-name">${promo.label}</div>
         <div class="r-price">${valueText}</div>
       </div>
       <div class="row-actions">
-        <button class="btn-edit">Edit</button>
-        <button class="btn-delete">Delete</button>
+        <button class="btn-edit">${t("common.edit")}</button>
+        <button class="btn-delete">${t("common.delete")}</button>
       </div>
     `;
     row.querySelector(".btn-edit").addEventListener("click", () => openPromoForm(promo));
     row.querySelector(".btn-delete").addEventListener("click", () => {
-      if (!confirm(`Remove the "${promo.label}" promo?`)) return;
+      if (!confirm(t("promos.confirmDelete", { name: promo.label }))) return;
       PROMOS = PROMOS.filter(p => p.id !== promo.id);
       renderPromoList();
       renderQuickDiscounts();
@@ -680,7 +705,7 @@ QUICK_AMOUNTS.forEach(amt => {
 });
 const exactBtn = document.createElement("button");
 exactBtn.type = "button";
-exactBtn.textContent = "Exact";
+exactBtn.textContent = t("payment.exact");
 exactBtn.addEventListener("click", () => {
   cashReceivedInput.value = getGrandTotal().toFixed(2);
   updateChangeDisplay();
@@ -688,7 +713,7 @@ exactBtn.addEventListener("click", () => {
 quickCash.appendChild(exactBtn);
 const clearBtn = document.createElement("button");
 clearBtn.type = "button";
-clearBtn.textContent = "Clear";
+clearBtn.textContent = t("payment.clear");
 clearBtn.className = "clear-btn";
 clearBtn.addEventListener("click", () => {
   cashReceivedInput.value = "";
@@ -704,7 +729,7 @@ function updateChangeDisplay(){
   const change = cash - total;
 
   if (cash <= 0){
-    changeLabel.textContent = "Change";
+    changeLabel.textContent = t("payment.change");
     changeAmount.textContent = money(0);
     changeRow.classList.remove("insufficient", "ok");
     paymentError.style.display = "none";
@@ -713,14 +738,14 @@ function updateChangeDisplay(){
   }
 
   if (change < 0){
-    changeLabel.textContent = "Still Due";
+    changeLabel.textContent = t("payment.stillDue");
     changeAmount.textContent = money(Math.abs(change));
     changeRow.classList.add("insufficient");
     changeRow.classList.remove("ok");
     paymentError.style.display = "block";
     confirmPaymentBtn.disabled = true;
   } else {
-    changeLabel.textContent = "Change";
+    changeLabel.textContent = t("payment.change");
     changeAmount.textContent = money(change);
     changeRow.classList.add("ok");
     changeRow.classList.remove("insufficient");
@@ -760,7 +785,7 @@ const receiptCash  = document.getElementById("receiptCash");
 const receiptChange = document.getElementById("receiptChange");
 
 function showReceipt(){
-  receiptMeta.textContent = new Date().toLocaleString();
+  receiptMeta.textContent = new Date().toLocaleString("en-PH");
   receiptLines.innerHTML = "";
   Object.entries(order).forEach(([id, qty]) => {
     const p = PRODUCTS.find(pr => pr.id === id);
@@ -773,7 +798,7 @@ function showReceipt(){
   receiptSubtotal.textContent = money(getSubtotal());
   if (discount){
     receiptDiscountRow.style.display = "flex";
-    receiptDiscountLabel.textContent = discount.label;
+    receiptDiscountLabel.textContent = discountLabelText();
     receiptDiscountAmount.textContent = "–" + money(getDiscountAmount());
   } else {
     receiptDiscountRow.style.display = "none";
@@ -870,7 +895,7 @@ document.getElementById("cancelFormBtn").addEventListener("click", () => {
 
 function openForm(product){
   editingId = product ? product.id : null;
-  formTitle.textContent = product ? "Edit Product" : "Add Product";
+  formTitle.textContent = product ? t("products.edit") : t("products.add");
   formError.style.display = "none";
 
   pName.value  = product ? product.name : "";
@@ -912,8 +937,8 @@ document.getElementById("saveProductBtn").addEventListener("click", () => {
 
   if (!name || !unit || isNaN(price) || price < 0 || !hasPicture){
     formError.textContent = !hasPicture
-      ? "Please choose an icon or upload a photo."
-      : "Please fill in a name, price, and unit.";
+      ? t("products.errorPicture")
+      : t("products.errorFields");
     formError.style.display = "block";
     return;
   }
@@ -944,7 +969,7 @@ document.getElementById("saveProductBtn").addEventListener("click", () => {
 function renderManageList(){
   manageList.innerHTML = "";
   if (PRODUCTS.length === 0){
-    manageList.innerHTML = `<div class="empty-manage">No products yet — add your first one.</div>`;
+    manageList.innerHTML = `<div class="empty-manage">${t("products.empty")}</div>`;
     return;
   }
   PRODUCTS.forEach(p => {
@@ -957,13 +982,13 @@ function renderManageList(){
         <div class="r-price">${money(p.price)} / ${p.unit}</div>
       </div>
       <div class="row-actions">
-        <button class="btn-edit">Edit</button>
-        <button class="btn-delete">Delete</button>
+        <button class="btn-edit">${t("common.edit")}</button>
+        <button class="btn-delete">${t("common.delete")}</button>
       </div>
     `;
     row.querySelector(".btn-edit").addEventListener("click", () => openForm(p));
     row.querySelector(".btn-delete").addEventListener("click", () => {
-      if (!confirm(`Remove "${p.name}" from the product list?`)) return;
+      if (!confirm(t("products.confirmDelete", { name: p.name }))) return;
       PRODUCTS = PRODUCTS.filter(pr => pr.id !== p.id);
       removeFromOrder(p.id);
       renderProducts();
@@ -972,6 +997,317 @@ function renderManageList(){
     manageList.appendChild(row);
   });
 }
+
+/* =========================================================
+   VOLUNTEERS VIEW
+   Sign-up form + list of co-op volunteers. Unlike products
+   and promos, volunteers are saved to localStorage so sign-ups
+   survive a page reload; "Export CSV" downloads them for a
+   spreadsheet or backup. Like the rest of the app, this is
+   per-browser until a shared backend exists.
+========================================================= */
+const VOLUNTEER_DAYS  = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const VOLUNTEER_TIMES = ["morning", "afternoon", "evening"];
+const VOLUNTEER_TASKS = ["cashier", "stocking", "cleaning", "delivery", "bookkeeping", "events"];
+
+const volunteerList       = document.getElementById("volunteerList");
+const volunteerCount      = document.getElementById("volunteerCount");
+const volunteerSearch     = document.getElementById("volunteerSearch");
+const volunteerFormPanel  = document.getElementById("volunteerFormPanel");
+const volunteerFormTitle  = document.getElementById("volunteerFormTitle");
+const volunteerFormError  = document.getElementById("volunteerFormError");
+const vName    = document.getElementById("vName");
+const vPhone   = document.getElementById("vPhone");
+const vEmail   = document.getElementById("vEmail");
+const vAddress = document.getElementById("vAddress");
+const vNotes   = document.getElementById("vNotes");
+const vMemberYes = document.getElementById("vMemberYes");
+const vMemberNo  = document.getElementById("vMemberNo");
+
+// each volunteer: { id, name, phone, email, address, member, days[], times[], tasks[], notes, createdAt }
+let VOLUNTEERS = [];
+try {
+  VOLUNTEERS = JSON.parse(localStorage.getItem("coopVolunteers")) || [];
+} catch(e){ /* ignore bad or unavailable cache */ }
+
+function saveVolunteers(){
+  try { localStorage.setItem("coopVolunteers", JSON.stringify(VOLUNTEERS)); } catch(e){ }
+}
+
+let editingVolunteerId = null; // null = new sign-up, otherwise the id being edited
+let volunteerMember = true;
+const volunteerPicks = { days: [], times: [], tasks: [] };
+
+// Volunteers type their own details, so escape before putting them in HTML
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* Tap-to-toggle chip rows (days / times / tasks); prefix is the translation group */
+function renderChips(containerId, codes, prefix, group){
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+  codes.forEach(code => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const on = volunteerPicks[group].includes(code);
+    btn.className = "source-tab chip" + (on ? " active" : "");
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.textContent = t(`${prefix}.${code}`);
+    btn.addEventListener("click", () => {
+      const picks = volunteerPicks[group];
+      volunteerPicks[group] = picks.includes(code) ? picks.filter(c => c !== code) : picks.concat(code);
+      renderChips(containerId, codes, prefix, group);
+    });
+    container.appendChild(btn);
+  });
+}
+function renderVolunteerChips(){
+  renderChips("vDays",  VOLUNTEER_DAYS,  "day",  "days");
+  renderChips("vTimes", VOLUNTEER_TIMES, "time", "times");
+  renderChips("vTasks", VOLUNTEER_TASKS, "task", "tasks");
+}
+
+function setVolunteerMember(isMember){
+  volunteerMember = isMember;
+  vMemberYes.classList.toggle("active", isMember);
+  vMemberNo.classList.toggle("active", !isMember);
+}
+vMemberYes.addEventListener("click", () => setVolunteerMember(true));
+vMemberNo.addEventListener("click", () => setVolunteerMember(false));
+
+function openVolunteerForm(vol){
+  editingVolunteerId = vol ? vol.id : null;
+  volunteerFormTitle.textContent = vol ? t("volunteers.edit") : t("volunteers.signup");
+  volunteerFormError.style.display = "none";
+  vName.value    = vol ? vol.name : "";
+  vPhone.value   = vol ? vol.phone : "";
+  vEmail.value   = vol ? vol.email : "";
+  vAddress.value = vol ? vol.address : "";
+  vNotes.value   = vol ? vol.notes : "";
+  setVolunteerMember(vol ? vol.member : true);
+  volunteerPicks.days  = vol ? vol.days.slice()  : [];
+  volunteerPicks.times = vol ? vol.times.slice() : [];
+  volunteerPicks.tasks = vol ? vol.tasks.slice() : [];
+  renderVolunteerChips();
+  volunteerFormPanel.style.display = "block";
+  vName.focus();
+}
+
+document.getElementById("addVolunteerBtn").addEventListener("click", () => openVolunteerForm(null));
+document.getElementById("cancelVolunteerBtn").addEventListener("click", () => {
+  volunteerFormPanel.style.display = "none";
+});
+
+document.getElementById("saveVolunteerBtn").addEventListener("click", () => {
+  const name  = vName.value.trim().replace(/\s+/g, " ");
+  const phone = vPhone.value.trim();
+  const email = vEmail.value.trim();
+  let error = null;
+  if (!name) error = "volunteers.errorName";
+  else if (phone.replace(/\D/g, "").length < 7) error = "volunteers.errorPhone";
+  else if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) error = "volunteers.errorEmail";
+  else if (volunteerPicks.days.length === 0) error = "volunteers.errorDays";
+  if (error){
+    volunteerFormError.textContent = t(error);
+    volunteerFormError.style.display = "block";
+    return;
+  }
+
+  // keep chip picks in their canonical order (Mon→Sun etc.)
+  const fields = {
+    name, phone, email,
+    address: vAddress.value.trim(),
+    member: volunteerMember,
+    days:  VOLUNTEER_DAYS.filter(c => volunteerPicks.days.includes(c)),
+    times: VOLUNTEER_TIMES.filter(c => volunteerPicks.times.includes(c)),
+    tasks: VOLUNTEER_TASKS.filter(c => volunteerPicks.tasks.includes(c)),
+    notes: vNotes.value.trim()
+  };
+  if (editingVolunteerId){
+    Object.assign(VOLUNTEERS.find(v => v.id === editingVolunteerId), fields);
+  } else {
+    VOLUNTEERS.push(Object.assign({ id: "vol-" + Date.now(), createdAt: new Date().toISOString() }, fields));
+  }
+  saveVolunteers();
+  volunteerFormPanel.style.display = "none";
+  renderVolunteerList();
+});
+
+volunteerSearch.addEventListener("input", renderVolunteerList);
+
+function renderVolunteerList(){
+  volunteerCount.textContent = VOLUNTEERS.length;
+  volunteerList.innerHTML = "";
+  if (VOLUNTEERS.length === 0){
+    volunteerList.innerHTML = `<div class="empty-manage">${t("volunteers.empty")}</div>`;
+    return;
+  }
+  const query = volunteerSearch.value.trim().toLowerCase();
+  const matches = VOLUNTEERS.filter(v => {
+    if (!query) return true;
+    const haystack = [v.name, v.phone, v.email, v.address].concat(v.tasks.map(c => t(`task.${c}`))).join(" ").toLowerCase();
+    return haystack.includes(query);
+  });
+  if (matches.length === 0){
+    volunteerList.innerHTML = `<div class="empty-manage">${t("volunteers.noMatch")}</div>`;
+    return;
+  }
+  matches.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(vol => {
+    const row = document.createElement("div");
+    row.className = "manage-row volunteer-row";
+    const days  = vol.days.map(c => t(`day.${c}`)).join(", ");
+    const times = vol.times.map(c => t(`time.${c}`)).join(", ");
+    const tasks = vol.tasks.map(c => `<span class="task-tag">${t(`task.${c}`)}</span>`).join("");
+    row.innerHTML = `
+      <div class="info">
+        <div class="r-name">${escapeHtml(vol.name)}${vol.member ? ` <span class="member-tag">${t("volunteers.memberTag")}</span>` : ""}</div>
+        <div class="r-price">${escapeHtml(vol.phone)}${vol.email ? " · " + escapeHtml(vol.email) : ""}</div>
+        <div class="r-price">${days}${times ? " · " + times : ""}</div>
+        ${tasks ? `<div class="task-tags">${tasks}</div>` : ""}
+      </div>
+      <div class="row-actions">
+        <button class="btn-edit">${t("common.edit")}</button>
+        <button class="btn-delete">${t("common.delete")}</button>
+      </div>
+    `;
+    row.querySelector(".btn-edit").addEventListener("click", () => openVolunteerForm(vol));
+    row.querySelector(".btn-delete").addEventListener("click", () => {
+      if (!confirm(t("volunteers.confirmDelete", { name: vol.name }))) return;
+      VOLUNTEERS = VOLUNTEERS.filter(v => v.id !== vol.id);
+      saveVolunteers();
+      if (editingVolunteerId === vol.id) volunteerFormPanel.style.display = "none";
+      renderVolunteerList();
+    });
+    volunteerList.appendChild(row);
+  });
+}
+
+/* Download every volunteer as a CSV (opens in Excel / Google Sheets).
+   Codes are written in English so the file reads the same whoever exports it. */
+document.getElementById("exportVolunteersBtn").addEventListener("click", () => {
+  const en = key => coopLang.t(key, null, "en");
+  const cell = val => {
+    let str = String(val);
+    // stop typed text like "=HYPERLINK(...)" running as a formula when opened in a spreadsheet
+    if (/^[=@\t\r]|^[+-][^\d\s]/.test(str)) str = "'" + str;
+    return `"${str.replace(/"/g, '""')}"`;
+  };
+  const header = ["Name", "Mobile", "Email", "Address", "Member", "Days", "Times", "Tasks", "Notes", "Signed up"];
+  const rows = VOLUNTEERS.map(v => [
+    v.name, v.phone, v.email, v.address, v.member ? "Yes" : "No",
+    v.days.map(c => en(`day.${c}`)).join(", "),
+    v.times.map(c => en(`time.${c}`)).join(", "),
+    v.tasks.map(c => en(`task.${c}`)).join(", "),
+    v.notes, v.createdAt.slice(0, 10)
+  ]);
+  const csv = [header].concat(rows).map(r => r.map(cell).join(",")).join("\r\n");
+  // \uFEFF tells Excel the file is UTF-8 (keeps ñ and ₱ intact)
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `volunteers-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+
+/* =========================================================
+   SETTINGS (⚙ top right)
+   Background color and language. Both engines live in
+   settings/ and save to localStorage; this is just the popup.
+========================================================= */
+const settingsOverlay = document.getElementById("settingsOverlay");
+const swatchGrid      = document.getElementById("swatchGrid");
+const themeSaved      = document.getElementById("themeSaved");
+const langList        = document.getElementById("langList");
+
+let previousTheme = null; // for the Undo button after picking a color
+
+document.getElementById("settingsBtn").addEventListener("click", () => {
+  previousTheme = null;
+  themeSaved.classList.remove("show");
+  renderSwatches();
+  renderLangList();
+  settingsOverlay.classList.add("show");
+});
+document.getElementById("closeSettingsBtn").addEventListener("click", () => {
+  settingsOverlay.classList.remove("show");
+});
+document.getElementById("themeUndoBtn").addEventListener("click", () => {
+  if (!previousTheme) return;
+  coopTheme.save(previousTheme);
+  previousTheme = null;
+  themeSaved.classList.remove("show");
+  renderSwatches();
+});
+
+function renderSwatches(){
+  const current = coopTheme.get().toLowerCase();
+  swatchGrid.innerHTML = "";
+  coopTheme.PRESETS.forEach(preset => {
+    const selected = preset.hex.toLowerCase() === current;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "swatch" + (selected ? " selected" : "");
+    btn.style.background = preset.hex;
+    btn.title = preset.name;
+    btn.setAttribute("aria-label", preset.name);
+    btn.setAttribute("aria-pressed", selected ? "true" : "false");
+    btn.innerHTML = `<span class="check">✓</span>`;
+    btn.addEventListener("click", () => {
+      if (selected) return;
+      previousTheme = coopTheme.get();
+      coopTheme.save(preset.hex);
+      themeSaved.classList.add("show");
+      renderSwatches();
+    });
+    swatchGrid.appendChild(btn);
+  });
+}
+
+function renderLangList(){
+  const current = coopLang.get();
+  langList.innerHTML = "";
+  coopLang.list().forEach(lang => {
+    const selected = lang.code === current;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "lang-option" + (selected ? " selected" : "");
+    btn.lang = lang.htmlLang || lang.code;
+    btn.setAttribute("aria-pressed", selected ? "true" : "false");
+    btn.innerHTML = `
+      <span class="lang-badge" aria-hidden="true">${lang.badge || lang.code.toUpperCase()}</span>
+      <span class="lang-text">
+        <span class="lang-name">${lang.name || lang.code}</span>
+        <span class="lang-sample">${lang.sample || ""}</span>
+      </span>
+      <span class="check" aria-hidden="true">✓</span>
+    `;
+    btn.addEventListener("click", () => coopLang.set(lang.code));
+    langList.appendChild(btn);
+  });
+}
+
+// After a language switch the data-i18n text is already updated;
+// redraw everything script.js builds itself, keeping any open form as it was.
+coopLang.onChange(() => {
+  renderProducts();
+  renderOrder();
+  renderManageList();
+  renderPromoList();
+  renderVolunteerList();
+  renderVolunteerChips();
+  renderLangList();
+  setDiscountType(discountType);
+  setPromoFormType(promoFormType);
+  formTitle.textContent = editingId ? t("products.edit") : t("products.add");
+  promoFormTitle.textContent = editingPromoId ? t("promos.edit") : t("promos.add");
+  volunteerFormTitle.textContent = editingVolunteerId ? t("volunteers.edit") : t("volunteers.signup");
+  exactBtn.textContent = t("payment.exact");
+  clearBtn.textContent = t("payment.clear");
+  updateChangeDisplay();
+  if (googleSignInBtn.style.display !== "none") renderGoogleButton();
+});
 
 /* ---------- Init ---------- */
 renderProducts();
